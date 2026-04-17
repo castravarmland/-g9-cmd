@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<title>G9 CMD v1.4.0</title>
+<style>
+  :root {
+    --bg:      #141414;
+    --bg2:     #1a1a1a;
+    --bg3:     #222222;
+    --border:  #2a2a2a;
+    --text:    #f1f1f1;
+    --muted:   #888;
+    --accent:  #4a9eff;
+    --green:   #4ade80;
+    --red:     #f87171;
+
+    --cat-ssh-bg:  #1d3a5e; --cat-ssh-fg:  #5ba3f5;
+    --cat-net-bg:  #1a3d2b; --cat-net-fg:  #4ade80;
+    --cat-sys-bg:  #3a2e0a; --cat-sys-fg:  #fbbf24;
+    --cat-fil-bg:  #3a1a1a; --cat-fil-fg:  #f87171;
+    --cat-jel-bg:  #2a1a3e; --cat-jel-fg:  #c084fc;
+    --cat-egn-bg:  #2a2a2a; --cat-egn-fg:  #aaaaaa;
+
+    --syn-cmd:  #79c0ff;
+    --syn-flag: #ff7b72;
+    --syn-str:  #a5d6ff;
+    --syn-pipe: #d2a8ff;
+    --syn-path: #ffa657;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Consolas', 'Courier New', monospace;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 12px;
+    overflow: hidden;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── TOPBAR ── */
+  #topbar {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 14px 8px;
+    flex-shrink: 0;
+  }
+  #topbar-row1 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  #app-title {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--text);
+  }
+  #app-title span { color: var(--accent); }
+  #app-version { font-size: 11px; color: var(--muted); margin-left: 8px; }
+
+  #btn-settings {
+    background: none; border: none; color: var(--muted);
+    cursor: pointer; font-size: 16px; padding: 2px 6px;
+    border-radius: 4px; transition: color 0.15s, background 0.15s;
+  }
+  #btn-settings:hover { color: var(--text); background: var(--bg3); }
+
+  #topbar-row2 { display: flex; gap: 8px; }
+  #search-input {
+    flex: 1; background: var(--bg3); border: 1px solid var(--border);
+    color: var(--text); font-family: inherit; font-size: 12px;
+    padding: 6px 10px; border-radius: 4px; outline: none;
+    transition: border-color 0.15s;
+  }
+  #search-input:focus { border-color: var(--accent); }
+  #search-input::placeholder { color: var(--muted); }
+
+  #btn-add {
+    background: var(--bg3); border: 1px solid var(--border);
+    color: #888; font-family: inherit; font-size: 12px;
+    padding: 6px 14px; border-radius: 4px; cursor: pointer;
+    white-space: nowrap; transition: background 0.15s, border-color 0.15s;
+  }
+  #btn-add:hover { background: #252525; border-color: #444; }
+
+  /* ── FLIKAR ── */
+  #tabs {
+    display: flex; background: var(--bg2);
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+    padding: 0 14px;
+  }
+  .tab {
+    padding: 8px 16px 7px; cursor: pointer; font-family: inherit;
+    font-size: 12px; color: var(--muted);
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
+
+  /* ── KATEGORIFILTER ── */
+  #cat-filter {
+    display: flex; gap: 7px; padding: 10px 14px 8px;
+    background: var(--bg); border-bottom: 1px solid var(--border);
+    flex-shrink: 0; flex-wrap: wrap;
+  }
+  .cat-btn {
+    display: inline-block; font-size: 11px; padding: 3px 10px;
+    border-radius: 20px; letter-spacing: 0.04em; font-weight: 600;
+    cursor: pointer; border: 2px solid transparent;
+    transition: opacity 0.15s, border-color 0.15s;
+    font-family: inherit; opacity: 0.6;
+  }
+  .cat-btn.active { opacity: 1; border-color: rgba(255,255,255,0.25); }
+  .cat-btn:hover { opacity: 1; }
+  .cat-btn-SSH     { background: var(--cat-ssh-bg); color: var(--cat-ssh-fg); }
+  .cat-btn-Natverk { background: var(--cat-net-bg); color: var(--cat-net-fg); }
+  .cat-btn-System  { background: var(--cat-sys-bg); color: var(--cat-sys-fg); }
+  .cat-btn-Filer   { background: var(--cat-fil-bg); color: var(--cat-fil-fg); }
+  .cat-btn-Jellyfin { background: var(--cat-jel-bg); color: var(--cat-jel-fg); }
+  .cat-btn-Egna   { background: var(--cat-egn-bg); color: var(--cat-egn-fg); }
+
+  /* ── TABELL ── */
+  #table-wrap {
+    flex: 1; overflow-y: auto; overflow-x: hidden;
+    scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+  }
+  #table-wrap::-webkit-scrollbar { width: 5px; }
+  #table-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+
+  .col-nr   { width: 28px; }
+  .col-main { /* 1fr via table-layout */ }
+  .col-desc { width: 200px; }
+  .col-act  { width: 28px; }
+
+  thead th {
+    background: var(--bg2); padding: 5px 8px;
+    text-align: left; font-size: 10px; color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 1;
+    font-weight: 400; letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  thead th.col-nr { text-align: right; padding-right: 10px; }
+
+  tbody tr { border-bottom: 1px solid #1d1d1d; transition: background 0.1s; }
+  tbody tr:hover { background: var(--bg2); }
+  tbody td { padding: 8px 8px; vertical-align: top; }
+  tbody td.col-nr {
+    text-align: right; padding-right: 10px; color: var(--muted);
+    font-size: 10px; padding-top: 11px;
+  }
+
+  /* Namn-rad: name + badge */
+  .cmd-name-row {
+    display: flex; align-items: center; gap: 7px;
+    margin-bottom: 4px; flex-wrap: wrap;
+  }
+  .cmd-name {
+    font-family: 'Segoe UI', sans-serif;
+    font-size: 11px; font-weight: 400; color: var(--text);
+  }
+
+  /* Badge */
+  .badge {
+    display: inline-block; font-size: 9px; padding: 2px 7px;
+    border-radius: 20px; letter-spacing: 0.05em;
+    text-transform: uppercase; font-weight: 700;
+  }
+  .badge-SSH     { background: var(--cat-ssh-bg); color: var(--cat-ssh-fg); }
+  .badge-Natverk { background: var(--cat-net-bg); color: var(--cat-net-fg); }
+  .badge-System  { background: var(--cat-sys-bg); color: var(--cat-sys-fg); }
+  .badge-Filer   { background: var(--cat-fil-bg); color: var(--cat-fil-fg); }
+  .badge-Jellyfin { background: var(--cat-jel-bg); color: var(--cat-jel-fg); }
+  .badge-Egna   { background: var(--cat-egn-bg); color: var(--cat-egn-fg); }
+
+  /* Kommandorad */
+  .cmd-code {
+    font-family: 'Consolas', monospace; font-size: 11.5px;
+    cursor: pointer; border-radius: 3px; padding: 3px 6px;
+    display: block; word-break: break-all; line-height: 1.55;
+    background: #111; border: 1px solid transparent;
+    transition: border-color 0.12s, background 0.12s;
+    position: relative;
+  }
+  .cmd-code:hover { border-color: var(--border); background: #191919; }
+  .cmd-code.copied { background: #0f1f0f !important; border-color: var(--green) !important; }
+  .cmd-code::after {
+    content: '⎘'; position: absolute; right: 6px; top: 3px;
+    color: var(--muted); font-size: 11px; opacity: 0; transition: opacity 0.12s;
+  }
+  .cmd-code:hover::after { opacity: 1; }
+
+  /* Syntaxfärger — styrs av Okaidia-temat */
+  .t-plain { color: var(--text); }
+
+  /* Beskrivning */
+  .col-desc td, td.col-desc {
+    font-family: 'Segoe UI', sans-serif;
+    font-size: 11px; color: var(--muted); line-height: 1.5;
+    vertical-align: top; padding-top: 10px;
+  }
+
+  /* Användningsprick */
+  .usage-dot {
+    display: inline-block; width: 5px; height: 5px;
+    border-radius: 50%; background: var(--accent);
+    margin-left: 4px; opacity: 0.5; vertical-align: middle;
+  }
+
+  /* Ta bort-knapp */
+  .btn-del {
+    background: none; border: none; color: var(--muted);
+    cursor: pointer; font-size: 12px; padding: 2px 4px;
+    border-radius: 3px; opacity: 0; transition: opacity 0.15s, color 0.15s;
+    vertical-align: top; margin-top: 8px;
+  }
+  tbody tr:hover .btn-del { opacity: 1; }
+  .btn-del:hover { color: var(--red); }
+
+  /* ── STATUSBAR ── */
+  #statusbar {
+    background: var(--bg2); border-top: 1px solid var(--border);
+    padding: 4px 14px; font-size: 10px; color: var(--muted);
+    display: flex; justify-content: space-between; flex-shrink: 0;
+  }
+
+  /* ── TOAST ── */
+  #toast {
+    position: fixed; bottom: 28px; left: 50%;
+    transform: translateX(-50%) translateY(16px);
+    background: var(--bg3); border: 1px solid var(--border);
+    color: var(--text); padding: 6px 16px; border-radius: 5px;
+    font-size: 11px; opacity: 0; transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none; z-index: 100;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── MODAL ── */
+  #modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7); z-index: 50;
+    align-items: center; justify-content: center;
+  }
+  #modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 20px; width: 380px; max-width: 95vw;
+  }
+  .modal h2 {
+    font-size: 12px; font-weight: 700; color: var(--accent);
+    letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 16px;
+  }
+  .form-row { margin-bottom: 11px; }
+  .form-row label {
+    display: block; font-size: 10px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px;
+  }
+  .form-row input, .form-row select, .form-row textarea {
+    width: 100%; background: var(--bg3); border: 1px solid var(--border);
+    color: var(--text); font-family: inherit; font-size: 12px;
+    padding: 6px 10px; border-radius: 4px; outline: none;
+    transition: border-color 0.15s;
+  }
+  .form-row input:focus, .form-row select:focus, .form-row textarea:focus { border-color: var(--accent); }
+  .form-row select option { background: var(--bg3); }
+  .form-row textarea { resize: vertical; min-height: 55px; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
+  .btn-cancel {
+    background: var(--bg3); border: 1px solid var(--border); color: var(--muted);
+    font-family: inherit; font-size: 12px; padding: 6px 14px; border-radius: 4px; cursor: pointer;
+  }
+  .btn-confirm {
+    background: #1a2e1a; border: 1px solid var(--green); color: var(--green);
+    font-family: inherit; font-size: 12px; padding: 6px 14px; border-radius: 4px; cursor: pointer;
+  }
+  .btn-cancel:hover { background: var(--bg); }
+  .btn-confirm:hover { background: #213d21; }
+
+  /* Inställningar */
+  .settings-section { margin-bottom: 14px; }
+  .settings-section h3 {
+    font-size: 10px; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.08em; margin-bottom: 8px; padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+  }
+  .settings-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 4px 0; font-size: 11px; color: var(--text);
+    font-family: 'Segoe UI', sans-serif;
+  }
+  .settings-row span { color: var(--muted); font-size: 10px; }
+  .btn-danger {
+    background: var(--bg3); border: 1px solid var(--border); color: var(--red);
+    font-family: inherit; font-size: 11px; padding: 3px 10px;
+    border-radius: 3px; cursor: pointer;
+  }
+  .btn-danger:hover { background: #2e1a1a; border-color: var(--red); }
+  .btn-primary {
+    background: var(--bg3); border: 1px solid var(--border); color: var(--accent);
+    font-family: inherit; font-size: 11px; padding: 3px 10px;
+    border-radius: 3px; cursor: pointer;
+  }
+  .btn-primary:hover { background: #1a2a3e; border-color: var(--accent); }
+
+  #no-results {
+    display: none; text-align: center; color: var(--muted);
+    padding: 40px; font-size: 12px;
+  }
+</style>
+<link rel="stylesheet" href="prism-okaidia.min.css">
+<script src="prism-core.min.js"></script>
+<script src="prism-bash.min.js"></script>
+<script src="prism-powershell.min.js"></script>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div id="topbar">
+  <div id="topbar-row1">
+    <div></div>
+    <button id="btn-settings" title="Inställningar">⚙</button>
+  </div>
+  <div id="topbar-row2">
+    <input id="search-input" type="text" placeholder="Sök kommando, namn eller kategori…">
+    <button id="btn-add">+ Lägg till</button>
+  </div>
+</div>
+
+<!-- FLIKAR -->
+<div id="tabs">
+  <div class="tab active" data-tab="powershell">PowerShell</div>
+  <div class="tab" data-tab="linux">SSH / Linux</div>
+</div>
+
+<!-- KATEGORIFILTER -->
+<div id="cat-filter">
+  <button class="cat-btn cat-btn-SSH active"      data-cat="SSH">SSH</button>
+  <button class="cat-btn cat-btn-Natverk active"  data-cat="Nätverk">Nätverk</button>
+  <button class="cat-btn cat-btn-System active"   data-cat="System">System</button>
+  <button class="cat-btn cat-btn-Filer active"    data-cat="Filer">Filer</button>
+  <button class="cat-btn cat-btn-Jellyfin active" data-cat="Jellyfin">Jellyfin</button>
+  <button class="cat-btn cat-btn-Egna active"     data-cat="Egna">Egna</button>
+</div>
+
+<!-- TABELL -->
+<div id="table-wrap">
+  <table>
+    <colgroup>
+      <col class="col-nr">
+      <col class="col-main">
+      <col class="col-desc">
+      <col class="col-act">
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="col-nr">#</th>
+        <th>Kommando</th>
+        <th class="col-desc">Beskrivning</th>
+        <th class="col-act"></th>
+      </tr>
+    </thead>
+    <tbody id="cmd-tbody"></tbody>
+  </table>
+  <div id="no-results">Inga kommandon matchade sökningen.</div>
+</div>
+
+<!-- STATUSBAR -->
+<div id="statusbar">
+  <span id="status-count"></span>
+  <span id="status-tab"></span>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- MODAL -->
+<div id="modal-overlay">
+  <!-- Lägg till -->
+  <div class="modal" id="modal-add" style="display:none">
+    <h2>Lägg till kommando</h2>
+    <div class="form-row">
+      <label>Flik</label>
+      <select id="add-tab">
+        <option value="powershell">PowerShell</option>
+        <option value="linux">SSH / Linux</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>Kategori</label>
+      <select id="add-cat">
+        <option value="SSH">SSH</option>
+        <option value="Nätverk">Nätverk</option>
+        <option value="System">System</option>
+        <option value="Filer">Filer</option>
+        <option value="Jellyfin">Jellyfin</option>
+        <option value="Egna">Egna</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>Namn</label>
+      <input id="add-name" type="text" placeholder="T.ex. Kolla tjänster">
+    </div>
+    <div class="form-row">
+      <label>Kommando</label>
+      <textarea id="add-cmd" placeholder="T.ex. sudo systemctl status jellyfin"></textarea>
+    </div>
+    <div class="form-row">
+      <label>Beskrivning (valfri)</label>
+      <input id="add-desc" type="text" placeholder="Kort förklaring">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="modal-cancel-add">Avbryt</button>
+      <button class="btn-confirm" id="modal-confirm-add">Spara</button>
+    </div>
+  </div>
+
+  <!-- Inställningar -->
+  <div class="modal" id="modal-settings" style="display:none">
+    <h2>⚙ Inställningar</h2>
+    <div class="settings-section">
+      <h3>Importera kommandon</h3>
+      <div class="settings-row">
+        Importera från CSV-fil
+        <button class="btn-primary" id="btn-import-csv">Välj fil…</button>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:5px;line-height:1.5;font-family:'Segoe UI',sans-serif;">
+        Format: <code style="color:var(--text);font-size:10px;">tab, cat, name, cmd, desc</code><br>
+        Dubbletter hoppas över automatiskt.
+      </div>
+      <input type="file" id="csv-file-input" accept=".csv" style="display:none">
+    </div>
+    <div class="settings-section">
+      <h3>Statistik</h3>
+      <div class="settings-row">
+        Nollställ användningsstatistik
+        <button class="btn-danger" id="btn-reset-stats">Nollställ</button>
+      </div>
+    </div>
+    <div class="settings-section">
+      <h3>Egna kommandon</h3>
+      <div class="settings-row">
+        Ta bort alla egna kommandon
+        <button class="btn-danger" id="btn-clear-custom">Rensa</button>
+      </div>
+    </div>
+    <div class="settings-section">
+      <h3>Info</h3>
+      <div class="settings-row">Version <span>v1.4.0</span></div>
+      <div class="settings-row">Lagring <span>Persistent via localStorage</span></div>
+      <div class="settings-row">Syntaxfärgning <span>Prism.js</span></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="modal-close-settings">Stäng</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+//  STORAGE
+// ═══════════════════════════════════════════
+const store = {
+  get(k)    { try { return (window.storage?.get(k)) ?? localStorage.getItem(k) } catch { return null } },
+  set(k, v) { try { window.storage ? window.storage.set(k, v) : localStorage.setItem(k, v) } catch {} },
+  del(k)    { try { window.storage ? window.storage.remove(k) : localStorage.removeItem(k) } catch {} }
+}
+
+// ═══════════════════════════════════════════
+//  SYNTAXFÄRGNING — Prism.js
+// ═══════════════════════════════════════════
+function syntaxHL(cmd) {
+  try {
+    const lang = currentTab === 'powershell' ? 'powershell' : 'bash'
+    const grammar = Prism.languages[lang]
+    if (!grammar) return escHtml(cmd)
+    return Prism.highlight(cmd, grammar, lang)
+  } catch(e) {
+    return escHtml(cmd)
+  }
+}
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+}
+
+// ═══════════════════════════════════════════
+//  DATA
+// ═══════════════════════════════════════════
+const BUILTIN = {
+  powershell: [
+    { cat:'SSH',      name:'SSH till G9 (lokalt)',       cmd:'ssh YOUR_USERNAME@YOUR_SERVER_IP',                                                    desc:'Loggar in på G9 via hemmanätverket. Enklaste varianten.' },
+    { cat:'SSH',      name:'SSH till G9 (Tailscale)',    cmd:'ssh YOUR_USERNAME@YOUR_TAILSCALE_IP',                                                   desc:'Loggar in på G9 utifrån, t.ex. när du inte är hemma.' },
+    { cat:'Nätverk',  name:'Kolla om en port är öppen',  cmd:'Test-NetConnection YOUR_SERVER_IP -Port 8096',                              desc:'Bästa verktyget för att snabbt se om en tjänst svarar. Ger True/False.' },
+    { cat:'Nätverk',  name:'Ping — lever G9?',           cmd:'ping YOUR_SERVER_IP',                                                       desc:'Enklaste livskontrollen. Svarar G9 alls på nätverket?' },
+    { cat:'Nätverk',  name:'Kolla ditt eget nätverk',    cmd:'ipconfig',                                                                 desc:'Ser vilken IP-adress laptopen har. Avgör om du är på rätt nätverk (YOUR_SERVER_SUBNET).' },
+    { cat:'Nätverk',  name:'Testa om Jellyfin svarar',   cmd:'Invoke-WebRequest http://YOUR_SERVER_IP:8096/System/Info/Public',           desc:'Kontrollerar om Jellyfin svarar och vad den returnerar.' },
+    { cat:'Nätverk',  name:'Kolla extern IP',            cmd:'Invoke-WebRequest https://api.ipify.org',                                  desc:'Visar din publika IP-adress. Bra om du misstänker att leverantören bytt IP.' },
+    { cat:'System',   name:'Starta yt-dlp Helper',       cmd:'cd "C:\\g9_Program\\yt-dlp Helper" && python yt_dlp_gui.py',              desc:'Byter mapp och startar yt-dlp GUI-appen.' },
+    { cat:'System',   name:'Starta G9 CMD',              cmd:'cd "C:\\g9_Program\\G9 cmd" && npm start',                                 desc:'Startar G9 CMD-appen via npm.' },
+    { cat:'System',   name:'Starta G9 Monitor',          cmd:'cd "C:\\g9-monitor" && npm start',                                         desc:'Startar G9 Monitor Electron-appen.' },
+    { cat:'System',   name:'Bygg G9 Monitor .exe',       cmd:'cd C:\\g9-monitor && npm run build',                                       desc:'Kompilerar Monitor-appen till körbar .exe i dist/.' },
+    { cat:'Filer',    name:'SCP — hämta fil från G9',    cmd:'scp YOUR_USERNAME@YOUR_SERVER_IP:/home/YOUR_USERNAME/fil.txt C:\\Users\\YOUR_USERNAME\\Desktop\\',      desc:'Kopierar en fil från G9 till skrivbordet.' },
+    { cat:'Filer',    name:'SCP — skicka fil till G9',   cmd:'scp C:\\Users\\YOUR_USERNAME\\Desktop\\fil.txt YOUR_USERNAME@YOUR_SERVER_IP:/home/YOUR_USERNAME/',      desc:'Skickar en fil från skrivbordet till G9.' },
+  ],
+  linux: [
+    { cat:'SSH',      name:'Anslut via LAN',             cmd:'ssh YOUR_USERNAME@YOUR_SERVER_IP',                                                    desc:'SSH lokalt nätverk.' },
+    { cat:'SSH',      name:'Anslut via Tailscale',       cmd:'ssh YOUR_USERNAME@YOUR_TAILSCALE_IP',                                                   desc:'SSH via Tailscale.' },
+    { cat:'SSH',      name:'Tailscale status',           cmd:'tailscale status',                                                         desc:'Visar alla anslutna Tailscale-enheter.' },
+    { cat:'System',   name:'Status alla tjänster',       cmd:'sudo systemctl status caddy jellyfin pihole-FTL g9-metrics radarr sonarr bazarr', desc:'Snabb överblick om något kraschat eller inte mår bra.' },
+    { cat:'System',   name:'Starta om allt',             cmd:'sudo systemctl restart caddy jellyfin pihole-FTL g9-metrics radarr sonarr bazarr', desc:'Hård restart av alla tjänster.' },
+    { cat:'Jellyfin', name:'Starta om Jellyfin',         cmd:'sudo systemctl restart jellyfin',                                          desc:'Startar om Jellyfin-tjänsten.' },
+    { cat:'Jellyfin', name:'Stoppa Jellyfin',            cmd:'sudo systemctl stop jellyfin',                                             desc:'' },
+    { cat:'Jellyfin', name:'Status Jellyfin',            cmd:'sudo systemctl status jellyfin',                                           desc:'Visar om Jellyfin körs och senaste loggrader.' },
+    { cat:'Jellyfin', name:'Loggar — Jellyfin',          cmd:'sudo journalctl -u jellyfin -n 50 --no-pager',                            desc:'Visar de 50 senaste loggraderna för Jellyfin.' },
+    { cat:'Jellyfin', name:'Jellyfin API-test',          cmd:'curl -s http://localhost:8096/System/Info/Public | python3 -m json.tool', desc:'Kontrollerar att Jellyfin svarar live.' },
+    { cat:'System',   name:'Ladda om Caddy',             cmd:'sudo systemctl reload caddy',                                              desc:'Laddar om Caddy-konfigurationen utan att stänga av tjänsten.' },
+    { cat:'System',   name:'Loggar — Caddy',             cmd:'sudo journalctl -u caddy -n 50 --no-pager',                               desc:'Visar de 50 senaste loggraderna för Caddy.' },
+    { cat:'System',   name:'Redigera Caddyfile',         cmd:'sudo xed /etc/caddy/Caddyfile',                                           desc:'Öppnar Caddy-konfigurationen i textredigeraren.' },
+    { cat:'System',   name:'Starta om Bazarr',           cmd:'sudo systemctl restart bazarr',                                            desc:'Startar om Bazarr. Gör detta om swap-användningen växer.' },
+    { cat:'System',   name:'Restart NX',                 cmd:'sudo /usr/NX/bin/nxserver --restart',                                     desc:'Startar om NoMachine-servern.' },
+    { cat:'System',   name:'WirePlumber fix',            cmd:'kill -9 $(pgrep wireplumber) && systemctl --user restart wireplumber',     desc:'Snabbfix om ljudet slutar fungera.' },
+    { cat:'System',   name:'Kolla diskutrymme',          cmd:'df -h',                                                                    desc:'Visar ledigt utrymme på alla partitioner.' },
+    { cat:'System',   name:'RAM-användning',             cmd:'free -h',                                                                  desc:'Visar RAM- och swap-användning.' },
+    { cat:'System',   name:'Töm swap',                   cmd:'sudo swapoff -a && sudo swapon -a',                                       desc:'Tömmer swapminnet. Kräver att det finns ledigt RAM.' },
+    { cat:'System',   name:'Uppdateringar',              cmd:'sudo apt list --upgradable 2>/dev/null',                                   desc:'Listar tillgängliga paket-uppdateringar.' },
+    { cat:'System',   name:'Restart g9-metrics',         cmd:'sudo systemctl restart g9-metrics',                                        desc:'Startar om metrics-servern för G9 Monitor.' },
+    { cat:'System',   name:'Pi-hole DNS-rensa',          cmd:'sudo pihole reloaddns',                                                    desc:'Tömmer Pi-holes DNS-cache.' },
+    { cat:'Nätverk',  name:'Extern IP',                  cmd:'curl https://api.ipify.org',                                               desc:'Visar G9:s publika IP-adress.' },
+    { cat:'Nätverk',  name:'DNS-test',                   cmd:'dig monitor.onthemove.se @1.1.1.1',                                       desc:'Testar DNS-upplösning via Cloudflare.' },
+    { cat:'Nätverk',  name:'ufw status',                 cmd:'sudo ufw status verbose',                                                  desc:'Visar aktiva brandväggsregler.' },
+    { cat:'Filer',    name:'Backup manuell',             cmd:'/home/YOUR_USERNAME/g9-backup.sh',                                                  desc:'Kör backup-skriptet direkt.' },
+    { cat:'Filer',    name:'Kolla Elements-disk',        cmd:'sudo du -sh /media/YOUR_USERNAME/Elements/*',                                        desc:'Visar storleken på mappar på extern disk.' },
+    { cat:'Filer',    name:'Deploy monitor',             cmd:'cp /media/YOUR_USERNAME/Elements/Media/rip/index.html /var/www/g9monitor/index.html', desc:'Kopierar ny version av monitor-sidan till live.' },
+    { cat:'Filer',    name:'Rippa DVD',                  cmd:'sudo ddrescue /dev/sr0 /media/YOUR_USERNAME/Elements/Media/rip/filnamn.iso /media/YOUR_USERNAME/Elements/Media/rip/filnamn.log', desc:'Ersätt "filnamn" med filmens namn.' },
+  ]
+}
+
+// ═══════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════
+let currentTab    = 'powershell'
+let searchQuery   = ''
+let activeFilters = new Set(['SSH','Nätverk','System','Filer','Jellyfin','Egna'])
+let usageStats    = {}
+let customCmds    = []
+
+function loadState() {
+  try {
+    const u = store.get('g9cmd_usage'); if (u) usageStats = JSON.parse(u)
+    const c = store.get('g9cmd_custom'); if (c) customCmds = JSON.parse(c)
+  } catch {}
+}
+function saveUsage()  { store.set('g9cmd_usage',  JSON.stringify(usageStats)) }
+function saveCustom() { store.set('g9cmd_custom', JSON.stringify(customCmds)) }
+
+// ═══════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════
+function getRows() {
+  const builtin = (BUILTIN[currentTab] || []).map(r => ({ ...r, isCustom: false }))
+  const custom  = customCmds.filter(r => r.tab === currentTab).map(r => ({ ...r, isCustom: true }))
+  let rows = [...builtin, ...custom]
+
+  // Kategorifilter
+  rows = rows.filter(r => activeFilters.has(r.cat))
+
+  // Sök
+  if (searchQuery) {
+    const q = searchQuery.toLowerCase()
+    rows = rows.filter(r =>
+      r.name.toLowerCase().includes(q) ||
+      r.cmd.toLowerCase().includes(q)  ||
+      r.cat.toLowerCase().includes(q)  ||
+      (r.desc||'').toLowerCase().includes(q)
+    )
+  }
+
+  // Sortera: mest använda högst
+  rows.sort((a,b) => (usageStats[b.cmd]||0) - (usageStats[a.cmd]||0))
+  return rows
+}
+
+function catKey(cat) {
+  return { 'Nätverk':'Natverk' }[cat] || cat
+}
+
+function render() {
+  const rows  = getRows()
+  const tbody = document.getElementById('cmd-tbody')
+  const noRes = document.getElementById('no-results')
+
+  if (rows.length === 0) {
+    tbody.innerHTML = ''
+    noRes.style.display = 'block'
+    document.getElementById('status-count').textContent = '0 kommandon'
+    return
+  }
+  noRes.style.display = 'none'
+
+  const frag = document.createDocumentFragment()
+  rows.forEach((r, i) => {
+    const uses = usageStats[r.cmd] || 0
+    const tr = document.createElement('tr')
+
+    // #
+    const tdNr = document.createElement('td')
+    tdNr.className = 'col-nr'
+    tdNr.textContent = i + 1
+    tr.appendChild(tdNr)
+
+    // Namn + badge + kommando
+    const tdMain = document.createElement('td')
+
+    const nameRow = document.createElement('div')
+    nameRow.className = 'cmd-name-row'
+
+    const nameEl = document.createElement('span')
+    nameEl.className = 'cmd-name'
+    nameEl.textContent = r.name
+    nameRow.appendChild(nameEl)
+
+    const badge = document.createElement('span')
+    badge.className = `badge badge-${catKey(r.cat)}`
+    badge.textContent = r.cat
+    nameRow.appendChild(badge)
+
+    if (uses > 0) {
+      const dot = document.createElement('span')
+      dot.className = 'usage-dot'
+      dot.title = `${uses}× kopierat`
+      nameRow.appendChild(dot)
+    }
+    tdMain.appendChild(nameRow)
+
+    const code = document.createElement('code')
+    code.className = 'cmd-code'
+    code.dataset.cmd = r.cmd
+    code.innerHTML = syntaxHL(r.cmd)
+    tdMain.appendChild(code)
+
+    tr.appendChild(tdMain)
+
+    // Beskrivning
+    const tdDesc = document.createElement('td')
+    tdDesc.className = 'col-desc'
+    tdDesc.style.cssText = 'font-family:"Segoe UI",sans-serif;font-size:11px;color:var(--muted);line-height:1.5;vertical-align:top;padding-top:10px;'
+    tdDesc.textContent = r.desc || ''
+    tr.appendChild(tdDesc)
+
+    // Ta bort
+    const tdAct = document.createElement('td')
+    tdAct.className = 'col-act'
+    if (r.isCustom) {
+      const btn = document.createElement('button')
+      btn.className = 'btn-del'
+      btn.textContent = '✕'
+      btn.title = 'Ta bort'
+      btn.dataset.cmd = r.cmd
+      tdAct.appendChild(btn)
+    }
+    tr.appendChild(tdAct)
+
+    frag.appendChild(tr)
+  })
+
+  tbody.innerHTML = ''
+  tbody.appendChild(frag)
+
+  const tabNames = { powershell: 'PowerShell', linux: 'SSH / Linux' }
+  document.getElementById('status-count').textContent = `${rows.length} kommando${rows.length !== 1 ? 'n' : ''}`
+  document.getElementById('status-tab').textContent   = tabNames[currentTab]
+}
+
+// ═══════════════════════════════════════════
+//  EVENTS
+// ═══════════════════════════════════════════
+
+// Kopiera + ta bort
+document.getElementById('cmd-tbody').addEventListener('click', e => {
+  const code = e.target.closest('.cmd-code')
+  if (code) {
+    const cmd = code.dataset.cmd
+    navigator.clipboard.writeText(cmd).then(() => {
+      usageStats[cmd] = (usageStats[cmd] || 0) + 1
+      saveUsage()
+      code.classList.add('copied')
+      setTimeout(() => { code.classList.remove('copied'); render() }, 700)
+      showToast('⎘ Kopierat!')
+    })
+    return
+  }
+  const del = e.target.closest('.btn-del')
+  if (del) {
+    customCmds = customCmds.filter(r => r.cmd !== del.dataset.cmd)
+    saveCustom(); render(); showToast('Kommando borttaget')
+  }
+})
+
+// Flikar
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'))
+    tab.classList.add('active')
+    currentTab = tab.dataset.tab
+    render()
+  })
+})
+
+// Kategorifilter
+document.querySelectorAll('.cat-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const cat = btn.dataset.cat
+    if (activeFilters.has(cat)) {
+      // Tillåt inte att alla filtreras bort
+      if (activeFilters.size > 1) {
+        activeFilters.delete(cat)
+        btn.classList.remove('active')
+      }
+    } else {
+      activeFilters.add(cat)
+      btn.classList.add('active')
+    }
+    render()
+  })
+})
+
+// Sök
+document.getElementById('search-input').addEventListener('input', e => {
+  searchQuery = e.target.value.trim(); render()
+})
+
+// Lägg till
+document.getElementById('btn-add').addEventListener('click', () => {
+  document.getElementById('add-tab').value = currentTab
+  document.getElementById('add-cat').value = 'Egna'
+  document.getElementById('add-name').value = ''
+  document.getElementById('add-cmd').value  = ''
+  document.getElementById('add-desc').value = ''
+  openModal('modal-add')
+})
+document.getElementById('modal-cancel-add').addEventListener('click', closeModal)
+document.getElementById('modal-confirm-add').addEventListener('click', () => {
+  const tab  = document.getElementById('add-tab').value
+  const cat  = document.getElementById('add-cat').value
+  const name = document.getElementById('add-name').value.trim()
+  const cmd  = document.getElementById('add-cmd').value.trim()
+  const desc = document.getElementById('add-desc').value.trim()
+  if (!name || !cmd) { showToast('Namn och kommando krävs'); return }
+  customCmds.push({ tab, cat, name, cmd, desc })
+  saveCustom(); closeModal(); render(); showToast('✓ Kommando sparat!')
+})
+
+document.getElementById('btn-import-csv').addEventListener('click', () => {
+  document.getElementById('csv-file-input').click()
+})
+
+document.getElementById('csv-file-input').addEventListener('change', e => {
+  const file = e.target.files[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = ev => {
+    const lines = ev.target.result.split(/\r?\n/).filter(l => l.trim())
+    if (lines.length < 2) { showToast('CSV-filen är tom eller ogiltig'); return }
+
+    const header = lines[0].split(',').map(h => h.trim().toLowerCase())
+    const iTab  = header.indexOf('tab')
+    const iCat  = header.indexOf('cat')
+    const iName = header.indexOf('name')
+    const iCmd  = header.indexOf('cmd')
+    const iDesc = header.indexOf('desc')
+
+    if (iTab < 0 || iCat < 0 || iName < 0 || iCmd < 0) {
+      showToast('CSV saknar obligatoriska kolumner'); return
+    }
+
+    const existingCmds = new Set(customCmds.map(r => r.cmd))
+    let added = 0, skipped = 0
+
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(',')
+      const tab  = (cols[iTab]  || '').trim()
+      const cat  = (cols[iCat]  || '').trim()
+      const name = (cols[iName] || '').trim()
+      const cmd  = (cols[iCmd]  || '').trim()
+      const desc = iDesc >= 0 ? (cols[iDesc] || '').trim() : ''
+
+      if (!tab || !cat || !name || !cmd) { skipped++; continue }
+      if (!['powershell','linux'].includes(tab)) { skipped++; continue }
+      if (existingCmds.has(cmd)) { skipped++; continue }
+
+      customCmds.push({ tab, cat, name, cmd, desc })
+      existingCmds.add(cmd)
+      added++
+    }
+
+    saveCustom(); render()
+    closeModal()
+    showToast(`✓ ${added} importerade${skipped ? ', ' + skipped + ' hoppades över' : ''}`)
+    e.target.value = ''
+  }
+  reader.readAsText(file)
+})
+
+// Inställningar
+document.getElementById('btn-settings').addEventListener('click', () => openModal('modal-settings'))
+document.getElementById('modal-close-settings').addEventListener('click', closeModal)
+document.getElementById('btn-reset-stats').addEventListener('click', () => {
+  usageStats = {}; saveUsage(); showToast('Statistik nollställd'); render()
+})
+document.getElementById('btn-clear-custom').addEventListener('click', () => {
+  customCmds = []; saveCustom(); showToast('Egna kommandon rensade'); render()
+})
+
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-overlay')) closeModal()
+})
+
+function openModal(id) {
+  document.getElementById('modal-add').style.display = 'none'
+  document.getElementById('modal-settings').style.display = 'none'
+  document.getElementById(id).style.display = 'block'
+  document.getElementById('modal-overlay').classList.add('open')
+}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open') }
+
+let toastTimer
+function showToast(msg) {
+  const t = document.getElementById('toast')
+  t.textContent = msg; t.classList.add('show')
+  clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => t.classList.remove('show'), 1800)
+}
+
+// ═══════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════
+loadState()
+render()
+</script>
+</body>
+</html>
