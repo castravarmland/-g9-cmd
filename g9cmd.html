@@ -64,6 +64,16 @@
   #app-title span { color: var(--accent); }
   #app-version { font-size: 11px; color: var(--muted); margin-left: 8px; }
 
+  #csv-hint {
+    font-family: 'Segoe UI', sans-serif;
+    font-size: 11px; color: var(--muted);
+  }
+  #csv-hint-link {
+    color: var(--muted); text-decoration: none;
+    transition: color 0.15s;
+  }
+  #csv-hint-link:hover { color: var(--accent); }
+
   #btn-settings {
     background: none; border: none; color: var(--muted);
     cursor: pointer; font-size: 16px; padding: 2px 6px;
@@ -325,7 +335,7 @@
 <!-- TOPBAR -->
 <div id="topbar">
   <div id="topbar-row1">
-    <div></div>
+    <span id="csv-hint">Commands can be added manually or imported via CSV — see <a id="csv-hint-link" href="#">⚙</a></span>
     <button id="btn-settings" title="Inställningar">⚙</button>
   </div>
   <div id="topbar-row2">
@@ -495,50 +505,16 @@ function escHtml(s) {
 // ═══════════════════════════════════════════
 const BUILTIN = {
   powershell: [
-    { cat:'SSH',      name:'SSH till G9 (lokalt)',       cmd:'ssh YOUR_USERNAME@YOUR_SERVER_IP',                                                    desc:'Loggar in på G9 via hemmanätverket. Enklaste varianten.' },
-    { cat:'SSH',      name:'SSH till G9 (Tailscale)',    cmd:'ssh YOUR_USERNAME@YOUR_TAILSCALE_IP',                                                   desc:'Loggar in på G9 utifrån, t.ex. när du inte är hemma.' },
-    { cat:'Nätverk',  name:'Kolla om en port är öppen',  cmd:'Test-NetConnection YOUR_SERVER_IP -Port 8096',                              desc:'Bästa verktyget för att snabbt se om en tjänst svarar. Ger True/False.' },
-    { cat:'Nätverk',  name:'Ping — lever G9?',           cmd:'ping YOUR_SERVER_IP',                                                       desc:'Enklaste livskontrollen. Svarar G9 alls på nätverket?' },
-    { cat:'Nätverk',  name:'Kolla ditt eget nätverk',    cmd:'ipconfig',                                                                 desc:'Ser vilken IP-adress laptopen har. Avgör om du är på rätt nätverk (YOUR_SERVER_SUBNET).' },
-    { cat:'Nätverk',  name:'Testa om Jellyfin svarar',   cmd:'Invoke-WebRequest http://YOUR_SERVER_IP:8096/System/Info/Public',           desc:'Kontrollerar om Jellyfin svarar och vad den returnerar.' },
-    { cat:'Nätverk',  name:'Kolla extern IP',            cmd:'Invoke-WebRequest https://api.ipify.org',                                  desc:'Visar din publika IP-adress. Bra om du misstänker att leverantören bytt IP.' },
-    { cat:'System',   name:'Starta yt-dlp Helper',       cmd:'cd "C:\\g9_Program\\yt-dlp Helper" && python yt_dlp_gui.py',              desc:'Byter mapp och startar yt-dlp GUI-appen.' },
-    { cat:'System',   name:'Starta G9 CMD',              cmd:'cd "C:\\g9_Program\\G9 cmd" && npm start',                                 desc:'Startar G9 CMD-appen via npm.' },
-    { cat:'System',   name:'Starta G9 Monitor',          cmd:'cd "C:\\g9-monitor" && npm start',                                         desc:'Startar G9 Monitor Electron-appen.' },
-    { cat:'System',   name:'Bygg G9 Monitor .exe',       cmd:'cd C:\\g9-monitor && npm run build',                                       desc:'Kompilerar Monitor-appen till körbar .exe i dist/.' },
-    { cat:'Filer',    name:'SCP — hämta fil från G9',    cmd:'scp YOUR_USERNAME@YOUR_SERVER_IP:/home/YOUR_USERNAME/fil.txt C:\\Users\\YOUR_USERNAME\\Desktop\\',      desc:'Kopierar en fil från G9 till skrivbordet.' },
-    { cat:'Filer',    name:'SCP — skicka fil till G9',   cmd:'scp C:\\Users\\YOUR_USERNAME\\Desktop\\fil.txt YOUR_USERNAME@YOUR_SERVER_IP:/home/YOUR_USERNAME/',      desc:'Skickar en fil från skrivbordet till G9.' },
+    { cat:'Nätverk',  name:'Kolla ditt eget nätverk',    cmd:'ipconfig',                               desc:'Visar vilken IP-adress datorn har och vilket nätverk du är på.' },
+    { cat:'Nätverk',  name:'Kolla extern IP',            cmd:'Invoke-WebRequest https://api.ipify.org', desc:'Visar din publika IP-adress.' },
   ],
   linux: [
-    { cat:'SSH',      name:'Anslut via LAN',             cmd:'ssh YOUR_USERNAME@YOUR_SERVER_IP',                                                    desc:'SSH lokalt nätverk.' },
-    { cat:'SSH',      name:'Anslut via Tailscale',       cmd:'ssh YOUR_USERNAME@YOUR_TAILSCALE_IP',                                                   desc:'SSH via Tailscale.' },
-    { cat:'SSH',      name:'Tailscale status',           cmd:'tailscale status',                                                         desc:'Visar alla anslutna Tailscale-enheter.' },
-    { cat:'System',   name:'Status alla tjänster',       cmd:'sudo systemctl status caddy jellyfin pihole-FTL g9-metrics radarr sonarr bazarr', desc:'Snabb överblick om något kraschat eller inte mår bra.' },
-    { cat:'System',   name:'Starta om allt',             cmd:'sudo systemctl restart caddy jellyfin pihole-FTL g9-metrics radarr sonarr bazarr', desc:'Hård restart av alla tjänster.' },
-    { cat:'Jellyfin', name:'Starta om Jellyfin',         cmd:'sudo systemctl restart jellyfin',                                          desc:'Startar om Jellyfin-tjänsten.' },
-    { cat:'Jellyfin', name:'Stoppa Jellyfin',            cmd:'sudo systemctl stop jellyfin',                                             desc:'' },
-    { cat:'Jellyfin', name:'Status Jellyfin',            cmd:'sudo systemctl status jellyfin',                                           desc:'Visar om Jellyfin körs och senaste loggrader.' },
-    { cat:'Jellyfin', name:'Loggar — Jellyfin',          cmd:'sudo journalctl -u jellyfin -n 50 --no-pager',                            desc:'Visar de 50 senaste loggraderna för Jellyfin.' },
-    { cat:'Jellyfin', name:'Jellyfin API-test',          cmd:'curl -s http://localhost:8096/System/Info/Public | python3 -m json.tool', desc:'Kontrollerar att Jellyfin svarar live.' },
-    { cat:'System',   name:'Ladda om Caddy',             cmd:'sudo systemctl reload caddy',                                              desc:'Laddar om Caddy-konfigurationen utan att stänga av tjänsten.' },
-    { cat:'System',   name:'Loggar — Caddy',             cmd:'sudo journalctl -u caddy -n 50 --no-pager',                               desc:'Visar de 50 senaste loggraderna för Caddy.' },
-    { cat:'System',   name:'Redigera Caddyfile',         cmd:'sudo xed /etc/caddy/Caddyfile',                                           desc:'Öppnar Caddy-konfigurationen i textredigeraren.' },
-    { cat:'System',   name:'Starta om Bazarr',           cmd:'sudo systemctl restart bazarr',                                            desc:'Startar om Bazarr. Gör detta om swap-användningen växer.' },
-    { cat:'System',   name:'Restart NX',                 cmd:'sudo /usr/NX/bin/nxserver --restart',                                     desc:'Startar om NoMachine-servern.' },
-    { cat:'System',   name:'WirePlumber fix',            cmd:'kill -9 $(pgrep wireplumber) && systemctl --user restart wireplumber',     desc:'Snabbfix om ljudet slutar fungera.' },
-    { cat:'System',   name:'Kolla diskutrymme',          cmd:'df -h',                                                                    desc:'Visar ledigt utrymme på alla partitioner.' },
-    { cat:'System',   name:'RAM-användning',             cmd:'free -h',                                                                  desc:'Visar RAM- och swap-användning.' },
-    { cat:'System',   name:'Töm swap',                   cmd:'sudo swapoff -a && sudo swapon -a',                                       desc:'Tömmer swapminnet. Kräver att det finns ledigt RAM.' },
-    { cat:'System',   name:'Uppdateringar',              cmd:'sudo apt list --upgradable 2>/dev/null',                                   desc:'Listar tillgängliga paket-uppdateringar.' },
-    { cat:'System',   name:'Restart g9-metrics',         cmd:'sudo systemctl restart g9-metrics',                                        desc:'Startar om metrics-servern för G9 Monitor.' },
-    { cat:'System',   name:'Pi-hole DNS-rensa',          cmd:'sudo pihole reloaddns',                                                    desc:'Tömmer Pi-holes DNS-cache.' },
-    { cat:'Nätverk',  name:'Extern IP',                  cmd:'curl https://api.ipify.org',                                               desc:'Visar G9:s publika IP-adress.' },
-    { cat:'Nätverk',  name:'DNS-test',                   cmd:'dig monitor.onthemove.se @1.1.1.1',                                       desc:'Testar DNS-upplösning via Cloudflare.' },
-    { cat:'Nätverk',  name:'ufw status',                 cmd:'sudo ufw status verbose',                                                  desc:'Visar aktiva brandväggsregler.' },
-    { cat:'Filer',    name:'Backup manuell',             cmd:'/home/YOUR_USERNAME/g9-backup.sh',                                                  desc:'Kör backup-skriptet direkt.' },
-    { cat:'Filer',    name:'Kolla Elements-disk',        cmd:'sudo du -sh /media/YOUR_USERNAME/Elements/*',                                        desc:'Visar storleken på mappar på extern disk.' },
-    { cat:'Filer',    name:'Deploy monitor',             cmd:'cp /media/YOUR_USERNAME/Elements/Media/rip/index.html /var/www/g9monitor/index.html', desc:'Kopierar ny version av monitor-sidan till live.' },
-    { cat:'Filer',    name:'Rippa DVD',                  cmd:'sudo ddrescue /dev/sr0 /media/YOUR_USERNAME/Elements/Media/rip/filnamn.iso /media/YOUR_USERNAME/Elements/Media/rip/filnamn.log', desc:'Ersätt "filnamn" med filmens namn.' },
+    { cat:'System',   name:'Kolla diskutrymme',          cmd:'df -h',                                  desc:'Visar ledigt utrymme på alla partitioner.' },
+    { cat:'System',   name:'RAM-användning',             cmd:'free -h',                                desc:'Visar RAM- och swap-användning.' },
+    { cat:'System',   name:'Töm swap',                   cmd:'sudo swapoff -a && sudo swapon -a',      desc:'Tömmer swapminnet. Kräver att det finns ledigt RAM.' },
+    { cat:'System',   name:'Uppdateringar',              cmd:'sudo apt list --upgradable 2>/dev/null',  desc:'Listar tillgängliga paket-uppdateringar.' },
+    { cat:'Nätverk',  name:'ufw status',                 cmd:'sudo ufw status verbose',                desc:'Visar aktiva brandväggsregler.' },
+    { cat:'Nätverk',  name:'Extern IP',                  cmd:'curl https://api.ipify.org',             desc:'Visar serverns publika IP-adress.' },
   ]
 }
 
@@ -810,6 +786,7 @@ document.getElementById('csv-file-input').addEventListener('change', e => {
 
 // Inställningar
 document.getElementById('btn-settings').addEventListener('click', () => openModal('modal-settings'))
+document.getElementById('csv-hint-link').addEventListener('click', e => { e.preventDefault(); openModal('modal-settings') })
 document.getElementById('modal-close-settings').addEventListener('click', closeModal)
 document.getElementById('btn-reset-stats').addEventListener('click', () => {
   usageStats = {}; saveUsage(); showToast('Statistik nollställd'); render()
